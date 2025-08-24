@@ -20,18 +20,107 @@ document.getElementById('canvas-container').appendChild(renderer.domElement);
 const boxGroup = new THREE.Group();
 scene.add(boxGroup);
 
-// 박스 본체 생성 (뚜껑 없는 박스)
-let boxGeometry = new THREE.BoxGeometry(2, 1.8, 2);
+// 박스 본체를 5개의 면으로 생성 (위가 열린 상자)
+const boxParts = new THREE.Group();
+
+// 재질 설정
 const boxMaterial = new THREE.MeshPhongMaterial({
     color: 0x3498db,
     specular: 0x111111,
-    shininess: 100
+    shininess: 100,
+    side: THREE.DoubleSide
 });
-let boxBody = new THREE.Mesh(boxGeometry, boxMaterial);
-boxBody.position.y = -0.1; // 약간 아래로 이동 (뚜껑 공간 확보)
-boxBody.castShadow = true;
-boxBody.receiveShadow = true;
-boxGroup.add(boxBody);
+
+// 박스 크기
+let boxWidth = 2;
+let boxHeight = 1.8;
+let boxDepth = 2;
+const thickness = 0.05;
+
+// 바닥
+let floorGeometry = new THREE.BoxGeometry(boxWidth, thickness, boxDepth);
+let floor = new THREE.Mesh(floorGeometry, boxMaterial);
+floor.position.y = -boxHeight/2;
+floor.castShadow = true;
+floor.receiveShadow = true;
+boxParts.add(floor);
+
+// 앞면
+let frontGeometry = new THREE.BoxGeometry(boxWidth, boxHeight, thickness);
+let front = new THREE.Mesh(frontGeometry, boxMaterial);
+front.position.z = boxDepth/2;
+front.castShadow = true;
+front.receiveShadow = true;
+boxParts.add(front);
+
+// 뒷면
+let backGeometry = new THREE.BoxGeometry(boxWidth, boxHeight, thickness);
+let back = new THREE.Mesh(backGeometry, boxMaterial);
+back.position.z = -boxDepth/2;
+back.castShadow = true;
+back.receiveShadow = true;
+boxParts.add(back);
+
+// 왼쪽면
+let leftGeometry = new THREE.BoxGeometry(thickness, boxHeight, boxDepth);
+let left = new THREE.Mesh(leftGeometry, boxMaterial);
+left.position.x = -boxWidth/2;
+left.castShadow = true;
+left.receiveShadow = true;
+boxParts.add(left);
+
+// 오른쪽면
+let rightGeometry = new THREE.BoxGeometry(thickness, boxHeight, boxDepth);
+let right = new THREE.Mesh(rightGeometry, boxMaterial);
+right.position.x = boxWidth/2;
+right.castShadow = true;
+right.receiveShadow = true;
+boxParts.add(right);
+
+boxParts.position.y = -0.1;
+boxGroup.add(boxParts);
+
+// 날개(플랩) 생성
+const flapMaterial = new THREE.MeshPhongMaterial({
+    color: 0x5dade2,
+    specular: 0x111111,
+    shininess: 100,
+    side: THREE.DoubleSide,
+    opacity: 0.9,
+    transparent: true
+});
+
+// 날개 각도 고정 (45도)
+let targetFlapAngle = -45 * Math.PI / 180;
+
+// 날개 크기 (좌우만)
+let flapWidth = boxDepth / 2; // 박스 깊이의 절반
+let flapHeight = boxHeight * 0.3;
+
+// 왼쪽 날개
+let leftFlapGeometry = new THREE.BoxGeometry(flapWidth, thickness, boxDepth);
+let leftFlap = new THREE.Mesh(leftFlapGeometry, flapMaterial);
+const leftFlapPivot = new THREE.Group();
+leftFlapPivot.position.set(-boxWidth/2, boxHeight/2, 0);
+leftFlap.position.x = -flapWidth/2;
+leftFlapPivot.add(leftFlap);
+boxParts.add(leftFlapPivot);
+
+// 오른쪽 날개
+let rightFlapGeometry = new THREE.BoxGeometry(flapWidth, thickness, boxDepth);
+let rightFlap = new THREE.Mesh(rightFlapGeometry, flapMaterial);
+const rightFlapPivot = new THREE.Group();
+rightFlapPivot.position.set(boxWidth/2, boxHeight/2, 0);
+rightFlap.position.x = flapWidth/2;
+rightFlapPivot.add(rightFlap);
+boxParts.add(rightFlapPivot);
+
+// 초기 날개 각도 설정 (45도)
+leftFlapPivot.rotation.z = targetFlapAngle;
+rightFlapPivot.rotation.z = -targetFlapAngle;
+
+boxParts.position.y = -0.1;
+boxGroup.add(boxParts);
 
 // 뚜껑 생성
 let lidGeometry = new THREE.BoxGeometry(2.1, 0.1, 2.1); // 약간 더 크게
@@ -50,10 +139,12 @@ lidPivot.position.y = 0.85; // 박스 상단
 lidPivot.position.z = -1; // 뒤쪽 가장자리
 lid.position.z = 1; // 피벗에서 앞쪽으로 이동
 lidPivot.add(lid);
+// 뚜껑을 열린 상태로 고정 (70도)
+lidPivot.rotation.x = -70 * Math.PI / 180;
 boxGroup.add(lidPivot);
 
-// 전역 변수로 뚜껑 각도 저장
-let targetLidAngle = 0;
+// 전역 변수로 뚜껑 각도 저장 (고정값)
+let targetLidAngle = -70 * Math.PI / 180;
 
 // 조명 추가
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
@@ -150,30 +241,102 @@ document.addEventListener('wheel', (e) => {
 const widthControl = document.getElementById('width');
 const heightControl = document.getElementById('height');
 const depthControl = document.getElementById('depth');
-const lidControl = document.getElementById('lid');
 
 const widthValue = document.getElementById('width-value');
 const heightValue = document.getElementById('height-value');
 const depthValue = document.getElementById('depth-value');
-const lidValue = document.getElementById('lid-value');
 
 function updateBox() {
     const width = parseFloat(widthControl.value);
     const height = parseFloat(heightControl.value);
     const depth = parseFloat(depthControl.value);
     
-    // 기존 지오메트리 제거
-    boxGeometry.dispose();
+    // 기존 박스 파츠들 제거
+    floorGeometry.dispose();
+    frontGeometry.dispose();
+    backGeometry.dispose();
+    leftGeometry.dispose();
+    rightGeometry.dispose();
+    leftFlapGeometry.dispose();
+    rightFlapGeometry.dispose();
     lidGeometry.dispose();
     
-    // 새로운 박스 본체 생성
-    boxGeometry = new THREE.BoxGeometry(width, height * 0.9, depth);
-    boxGroup.remove(boxBody);
-    boxBody = new THREE.Mesh(boxGeometry, boxMaterial);
-    boxBody.position.y = -height * 0.05;
-    boxBody.castShadow = true;
-    boxBody.receiveShadow = true;
-    boxGroup.add(boxBody);
+    boxGroup.remove(boxParts);
+    boxParts.clear();
+    
+    // 새로운 크기 설정
+    boxWidth = width;
+    boxHeight = height * 0.9;
+    boxDepth = depth;
+    
+    // 바닥 재생성
+    floorGeometry = new THREE.BoxGeometry(boxWidth, thickness, boxDepth);
+    floor = new THREE.Mesh(floorGeometry, boxMaterial);
+    floor.position.y = -boxHeight/2;
+    floor.castShadow = true;
+    floor.receiveShadow = true;
+    boxParts.add(floor);
+    
+    // 앞면 재생성
+    frontGeometry = new THREE.BoxGeometry(boxWidth, boxHeight, thickness);
+    front = new THREE.Mesh(frontGeometry, boxMaterial);
+    front.position.z = boxDepth/2;
+    front.castShadow = true;
+    front.receiveShadow = true;
+    boxParts.add(front);
+    
+    // 뒷면 재생성
+    backGeometry = new THREE.BoxGeometry(boxWidth, boxHeight, thickness);
+    back = new THREE.Mesh(backGeometry, boxMaterial);
+    back.position.z = -boxDepth/2;
+    back.castShadow = true;
+    back.receiveShadow = true;
+    boxParts.add(back);
+    
+    // 왼쪽면 재생성
+    leftGeometry = new THREE.BoxGeometry(thickness, boxHeight, boxDepth);
+    left = new THREE.Mesh(leftGeometry, boxMaterial);
+    left.position.x = -boxWidth/2;
+    left.castShadow = true;
+    left.receiveShadow = true;
+    boxParts.add(left);
+    
+    // 오른쪽면 재생성
+    rightGeometry = new THREE.BoxGeometry(thickness, boxHeight, boxDepth);
+    right = new THREE.Mesh(rightGeometry, boxMaterial);
+    right.position.x = boxWidth/2;
+    right.castShadow = true;
+    right.receiveShadow = true;
+    boxParts.add(right);
+    
+    // 새로운 날개들 재생성 (좌우만)
+    flapWidth = boxDepth / 2; // 박스 깊이의 절반
+    flapHeight = boxHeight * 0.3;
+    
+    // 왼쪽 날개 재생성
+    leftFlapGeometry = new THREE.BoxGeometry(flapWidth, thickness, boxDepth);
+    leftFlap = new THREE.Mesh(leftFlapGeometry, flapMaterial);
+    leftFlapPivot.clear();
+    leftFlap.position.x = -flapWidth/2;
+    leftFlapPivot.add(leftFlap);
+    leftFlapPivot.position.set(-boxWidth/2, boxHeight/2, 0);
+    boxParts.add(leftFlapPivot);
+    
+    // 오른쪽 날개 재생성
+    rightFlapGeometry = new THREE.BoxGeometry(flapWidth, thickness, boxDepth);
+    rightFlap = new THREE.Mesh(rightFlapGeometry, flapMaterial);
+    rightFlapPivot.clear();
+    rightFlap.position.x = flapWidth/2;
+    rightFlapPivot.add(rightFlap);
+    rightFlapPivot.position.set(boxWidth/2, boxHeight/2, 0);
+    boxParts.add(rightFlapPivot);
+    
+    // 날개 각도 초기 설정 (45도)
+    leftFlapPivot.rotation.z = targetFlapAngle;
+    rightFlapPivot.rotation.z = -targetFlapAngle;
+    
+    boxParts.position.y = -height * 0.05;
+    boxGroup.add(boxParts);
     
     // 새로운 뚜껑 생성
     lidGeometry = new THREE.BoxGeometry(width * 1.05, height * 0.05, depth * 1.05);
@@ -187,23 +350,21 @@ function updateBox() {
     // 뚜껑 피벗 위치 조정
     lidPivot.position.y = height * 0.425;
     lidPivot.position.z = -depth / 2;
+    // 뚜껑을 열린 상태로 유지
+    lidPivot.rotation.x = -70 * Math.PI / 180;
     
     // 값 표시 업데이트
     widthValue.textContent = width.toFixed(1);
     heightValue.textContent = height.toFixed(1);
     depthValue.textContent = depth.toFixed(1);
-}
-
-function updateLid() {
-    const angle = parseFloat(lidControl.value);
-    targetLidAngle = -angle * Math.PI / 180; // 음수로 변환 (위로 열림)
-    lidValue.textContent = angle + '°';
+    
+    // 전개도 업데이트
+    drawUnfoldedBox();
 }
 
 widthControl.addEventListener('input', updateBox);
 heightControl.addEventListener('input', updateBox);
 depthControl.addEventListener('input', updateBox);
-lidControl.addEventListener('input', updateLid);
 
 // 애니메이션 루프
 function animate() {
@@ -218,8 +379,9 @@ function animate() {
         targetRotationY += 0.005;
     }
     
-    // 뚜껑 애니메이션
-    lidPivot.rotation.x += (targetLidAngle - lidPivot.rotation.x) * 0.1;
+    // 뚜껑은 고정된 각도로 유지 (애니메이션 제거)
+    
+    // 날개는 고정된 각도로 유지 (애니메이션 제거)
     
     // 박스 색상 애니메이션
     const time = Date.now() * 0.001;
@@ -231,3 +393,158 @@ function animate() {
 }
 
 animate();
+
+// 전개도 그리기 함수
+const unfoldCanvas = document.getElementById('unfold-canvas');
+const unfoldCtx = unfoldCanvas.getContext('2d');
+
+function drawUnfoldedBox() {
+    // 캔버스 초기화
+    unfoldCtx.clearRect(0, 0, unfoldCanvas.width, unfoldCanvas.height);
+    
+    // 현재 박스 크기 가져오기
+    const width = parseFloat(document.getElementById('width').value);
+    const height = parseFloat(document.getElementById('height').value);
+    const depth = parseFloat(document.getElementById('depth').value);
+    
+    // 스케일 계산 (화면에 맞게)
+    const scale = 40;
+    const w = width * scale;
+    const h = height * scale;
+    const d = depth * scale;
+    
+    // 중앙 위치 계산
+    const centerX = unfoldCanvas.width / 2;
+    const centerY = unfoldCanvas.height / 2;
+    
+    // 전개도 그리기 스타일 설정
+    unfoldCtx.strokeStyle = '#333';
+    unfoldCtx.lineWidth = 2;
+    unfoldCtx.font = '12px Arial';
+    unfoldCtx.textAlign = 'center';
+    unfoldCtx.textBaseline = 'middle';
+    
+    // 박스 본체 전개도 (십자가 모양)
+    // 바닥
+    unfoldCtx.fillStyle = '#e3f2fd';
+    unfoldCtx.fillRect(centerX - w/2, centerY - h/2, w, h * 0.9);
+    unfoldCtx.strokeRect(centerX - w/2, centerY - h/2, w, h * 0.9);
+    unfoldCtx.fillStyle = '#333';
+    unfoldCtx.fillText('바닥', centerX, centerY);
+    
+    // 앞면
+    unfoldCtx.fillStyle = '#bbdefb';
+    unfoldCtx.fillRect(centerX - w/2, centerY + h * 0.4, w, d);
+    unfoldCtx.strokeRect(centerX - w/2, centerY + h * 0.4, w, d);
+    unfoldCtx.fillStyle = '#333';
+    unfoldCtx.fillText('앞', centerX, centerY + h * 0.4 + d/2);
+    
+    // 뒷면
+    unfoldCtx.fillStyle = '#bbdefb';
+    unfoldCtx.fillRect(centerX - w/2, centerY - h/2 - d, w, d);
+    unfoldCtx.strokeRect(centerX - w/2, centerY - h/2 - d, w, d);
+    unfoldCtx.fillStyle = '#333';
+    unfoldCtx.fillText('뒤', centerX, centerY - h/2 - d/2);
+    
+    // 왼쪽면
+    unfoldCtx.fillStyle = '#90caf9';
+    unfoldCtx.fillRect(centerX - w/2 - d, centerY - h/2, d, h * 0.9);
+    unfoldCtx.strokeRect(centerX - w/2 - d, centerY - h/2, d, h * 0.9);
+    unfoldCtx.save();
+    unfoldCtx.translate(centerX - w/2 - d/2, centerY);
+    unfoldCtx.rotate(-Math.PI/2);
+    unfoldCtx.fillStyle = '#333';
+    unfoldCtx.fillText('왼쪽', 0, 0);
+    unfoldCtx.restore();
+    
+    // 오른쪽면
+    unfoldCtx.fillStyle = '#90caf9';
+    unfoldCtx.fillRect(centerX + w/2, centerY - h/2, d, h * 0.9);
+    unfoldCtx.strokeRect(centerX + w/2, centerY - h/2, d, h * 0.9);
+    unfoldCtx.save();
+    unfoldCtx.translate(centerX + w/2 + d/2, centerY);
+    unfoldCtx.rotate(Math.PI/2);
+    unfoldCtx.fillStyle = '#333';
+    unfoldCtx.fillText('오른쪽', 0, 0);
+    unfoldCtx.restore();
+    
+    // 뚜껑 그리기 (고정 위치)
+    unfoldCtx.fillStyle = 'rgba(41, 128, 185, 0.6)';
+    unfoldCtx.fillRect(centerX - w * 1.05 / 2, centerY - h/2 - d - d * 1.05, w * 1.05, d * 1.05);
+    unfoldCtx.strokeStyle = '#2980b9';
+    unfoldCtx.lineWidth = 2;
+    unfoldCtx.strokeRect(centerX - w * 1.05 / 2, centerY - h/2 - d - d * 1.05, w * 1.05, d * 1.05);
+    unfoldCtx.fillStyle = '#fff';
+    unfoldCtx.fillText('뚜껑', centerX, centerY - h/2 - d - d * 1.05 / 2);
+    
+    // 날개(플랩) 그리기 (좌우만)
+    const flapW = d / 2; // 박스 깊이의 절반
+    const flapH = h * 0.3;
+    
+    unfoldCtx.fillStyle = 'rgba(93, 173, 226, 0.7)';
+    unfoldCtx.strokeStyle = '#5dade2';
+    unfoldCtx.lineWidth = 1;
+    unfoldCtx.setLineDash([3, 3]);
+    
+    // 왼쪽면 날개
+    unfoldCtx.fillRect(centerX - w/2 - d - flapW, centerY - h/2, flapW, h * 0.9);
+    unfoldCtx.strokeRect(centerX - w/2 - d - flapW, centerY - h/2, flapW, h * 0.9);
+    unfoldCtx.save();
+    unfoldCtx.translate(centerX - w/2 - d - flapW/2, centerY);
+    unfoldCtx.rotate(-Math.PI/2);
+    unfoldCtx.fillStyle = '#fff';
+    unfoldCtx.fillText('왼쪽 날개', 0, 0);
+    unfoldCtx.restore();
+    
+    // 오른쪽면 날개
+    unfoldCtx.fillStyle = 'rgba(93, 173, 226, 0.7)';
+    unfoldCtx.fillRect(centerX + w/2 + d, centerY - h/2, flapW, h * 0.9);
+    unfoldCtx.strokeRect(centerX + w/2 + d, centerY - h/2, flapW, h * 0.9);
+    unfoldCtx.save();
+    unfoldCtx.translate(centerX + w/2 + d + flapW/2, centerY);
+    unfoldCtx.rotate(Math.PI/2);
+    unfoldCtx.fillStyle = '#fff';
+    unfoldCtx.fillText('오른쪽 날개', 0, 0);
+    unfoldCtx.restore();
+    
+    unfoldCtx.setLineDash([]);
+    
+    // 치수 표시
+    unfoldCtx.strokeStyle = '#999';
+    unfoldCtx.lineWidth = 1;
+    unfoldCtx.setLineDash([5, 5]);
+    
+    // Width 표시
+    unfoldCtx.beginPath();
+    unfoldCtx.moveTo(centerX - w/2, centerY + h * 0.4 + d + 10);
+    unfoldCtx.lineTo(centerX + w/2, centerY + h * 0.4 + d + 10);
+    unfoldCtx.stroke();
+    unfoldCtx.setLineDash([]);
+    unfoldCtx.fillStyle = '#666';
+    unfoldCtx.fillText(`W: ${width.toFixed(1)}`, centerX, centerY + h * 0.4 + d + 20);
+    
+    // Height 표시
+    unfoldCtx.setLineDash([5, 5]);
+    unfoldCtx.beginPath();
+    unfoldCtx.moveTo(centerX + w/2 + d + 10, centerY - h/2);
+    unfoldCtx.lineTo(centerX + w/2 + d + 10, centerY + h * 0.4);
+    unfoldCtx.stroke();
+    unfoldCtx.setLineDash([]);
+    unfoldCtx.save();
+    unfoldCtx.translate(centerX + w/2 + d + 20, centerY);
+    unfoldCtx.rotate(Math.PI/2);
+    unfoldCtx.fillText(`H: ${height.toFixed(1)}`, 0, 0);
+    unfoldCtx.restore();
+    
+    // Depth 표시
+    unfoldCtx.setLineDash([5, 5]);
+    unfoldCtx.beginPath();
+    unfoldCtx.moveTo(centerX - w/2 - d - 10, centerY - h/2);
+    unfoldCtx.lineTo(centerX - w/2 - 10, centerY - h/2);
+    unfoldCtx.stroke();
+    unfoldCtx.setLineDash([]);
+    unfoldCtx.fillText(`D: ${depth.toFixed(1)}`, centerX - w/2 - d/2, centerY - h/2 - 15);
+}
+
+// 초기 전개도 그리기
+drawUnfoldedBox();

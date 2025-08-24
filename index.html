@@ -14,11 +14,27 @@
             background-color: #f0f0f0;
             padding: 20px;
         }
+        .visualization-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
         #canvas-container {
             width: 300px;
             height: 300px;
             border: 2px solid #333;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        #unfold-container {
+            width: 400px;
+            height: 300px;
+            border: 2px solid #333;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            position: relative;
+        }
+        #unfold-canvas {
+            display: block;
         }
         #controls {
             margin-top: 20px;
@@ -26,7 +42,7 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            width: 300px;
+            width: 720px;
         }
         .control-group {
             margin-bottom: 15px;
@@ -55,7 +71,18 @@
     </style>
 </head>
 <body>
-    <div id="canvas-container"></div>
+    <div class="visualization-container">
+        <div>
+            <h3 style="text-align: center; margin: 0 0 10px 0;">3D View</h3>
+            <div id="canvas-container"></div>
+        </div>
+        <div>
+            <h3 style="text-align: center; margin: 0 0 10px 0;">전개도 (Unfolded)</h3>
+            <div id="unfold-container">
+                <canvas id="unfold-canvas" width="400" height="300"></canvas>
+            </div>
+        </div>
+    </div>
     
     <div id="controls">
         <h3>3D Box 조절</h3>
@@ -73,11 +100,6 @@
             <label>Depth:</label>
             <input type="range" id="depth" min="0.5" max="5" step="0.1" value="2">
             <span id="depth-value">2.0</span>
-        </div>
-        <div class="control-group">
-            <label>뚜껑:</label>
-            <input type="range" id="lid" min="0" max="90" step="1" value="0">
-            <span id="lid-value">0°</span>
         </div>
     </div>
     
