@@ -11,10 +11,22 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.z = 5;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(300, 300);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// 반응형 캔버스 크기 설정
+function updateRendererSize() {
+    const container = document.getElementById('canvas-container');
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+}
+
 document.getElementById('canvas-container').appendChild(renderer.domElement);
+updateRendererSize();
 
 // 박스 그룹 생성
 const boxGroup = new THREE.Group();
@@ -546,5 +558,25 @@ function drawUnfoldedBox() {
     unfoldCtx.fillText(`D: ${depth.toFixed(1)}`, centerX - w/2 - d/2, centerY - h/2 - 15);
 }
 
-// 초기 전개도 그리기
-drawUnfoldedBox();
+// 반응형 캔버스 업데이트
+function updateCanvasSize() {
+    const container = document.getElementById('unfold-container');
+    const canvas = document.getElementById('unfold-canvas');
+    
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    
+    canvas.width = width;
+    canvas.height = height;
+    
+    drawUnfoldedBox();
+}
+
+// 윈도우 리사이즈 이벤트 리스너
+window.addEventListener('resize', () => {
+    updateRendererSize();
+    updateCanvasSize();
+});
+
+// 초기 설정
+updateCanvasSize();

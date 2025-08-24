@@ -5,101 +5,190 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Box with Three.js</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
         body {
             margin: 0;
             font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 10px;
+            min-height: 100vh;
+        }
+        .app-container {
+            max-width: 100%;
+            margin: 0 auto;
             display: flex;
             flex-direction: column;
             align-items: center;
-            background-color: #f0f0f0;
-            padding: 20px;
+            gap: 15px;
         }
         .visualization-container {
             display: flex;
-            gap: 20px;
+            gap: 15px;
             align-items: flex-start;
+            width: 100%;
+            max-width: 800px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
-        #canvas-container {
-            width: 300px;
-            height: 300px;
+        .view-section {
+            flex: 1;
+            min-width: 280px;
+            max-width: 400px;
+        }
+        .view-title {
+            text-align: center;
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #333;
+        }
+        #canvas-container, #unfold-container {
+            width: 100%;
+            aspect-ratio: 1;
+            max-width: 350px;
             border: 2px solid #333;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+        }
+        #canvas-container canvas {
+            width: 100% !important;
+            height: 100% !important;
         }
         #unfold-container {
-            width: 400px;
-            height: 300px;
-            border: 2px solid #333;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             background-color: white;
             position: relative;
         }
         #unfold-canvas {
             display: block;
+            width: 100%;
+            height: 100%;
         }
         #controls {
-            margin-top: 20px;
             background-color: white;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            width: 720px;
+            width: 100%;
+            max-width: 800px;
         }
         .control-group {
             margin-bottom: 15px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: 10px;
         }
         .control-group label {
             font-weight: bold;
-            width: 60px;
+            min-width: 60px;
+            font-size: 14px;
         }
         .control-group input[type="range"] {
             flex: 1;
-            margin: 0 10px;
+            min-width: 0;
         }
         .control-group span {
-            width: 30px;
+            min-width: 40px;
             text-align: right;
             font-family: monospace;
+            font-size: 14px;
         }
         h3 {
             margin-top: 0;
             text-align: center;
             color: #333;
+            font-size: 18px;
+        }
+        
+        /* 모바일 반응형 */
+        @media (max-width: 768px) {
+            body {
+                padding: 5px;
+            }
+            .visualization-container {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .view-section {
+                width: 100%;
+                max-width: none;
+            }
+            #canvas-container, #unfold-container {
+                max-width: none;
+                width: 100%;
+                max-height: 300px;
+            }
+            #controls {
+                padding: 15px;
+            }
+            .control-group {
+                margin-bottom: 12px;
+            }
+            .control-group label {
+                min-width: 50px;
+                font-size: 13px;
+            }
+            .control-group span {
+                min-width: 35px;
+                font-size: 13px;
+            }
+            h3 {
+                font-size: 16px;
+            }
+            .view-title {
+                font-size: 14px;
+            }
+        }
+        
+        /* 매우 작은 화면 */
+        @media (max-width: 480px) {
+            body {
+                padding: 3px;
+            }
+            #canvas-container, #unfold-container {
+                max-height: 250px;
+            }
+            #controls {
+                padding: 12px;
+            }
+            .control-group {
+                margin-bottom: 10px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="visualization-container">
-        <div>
-            <h3 style="text-align: center; margin: 0 0 10px 0;">3D View</h3>
-            <div id="canvas-container"></div>
-        </div>
-        <div>
-            <h3 style="text-align: center; margin: 0 0 10px 0;">전개도 (Unfolded)</h3>
-            <div id="unfold-container">
-                <canvas id="unfold-canvas" width="400" height="300"></canvas>
+    <div class="app-container">
+        <div class="visualization-container">
+            <div class="view-section">
+                <h3 class="view-title">3D View</h3>
+                <div id="canvas-container"></div>
+            </div>
+            <div class="view-section">
+                <h3 class="view-title">전개도 (Unfolded)</h3>
+                <div id="unfold-container">
+                    <canvas id="unfold-canvas"></canvas>
+                </div>
             </div>
         </div>
-    </div>
-    
-    <div id="controls">
-        <h3>3D Box 조절</h3>
-        <div class="control-group">
-            <label>Width:</label>
-            <input type="range" id="width" min="0.5" max="5" step="0.1" value="2">
-            <span id="width-value">2.0</span>
-        </div>
-        <div class="control-group">
-            <label>Height:</label>
-            <input type="range" id="height" min="0.5" max="5" step="0.1" value="2">
-            <span id="height-value">2.0</span>
-        </div>
-        <div class="control-group">
-            <label>Depth:</label>
-            <input type="range" id="depth" min="0.5" max="5" step="0.1" value="2">
-            <span id="depth-value">2.0</span>
+        
+        <div id="controls">
+            <h3>3D Box 조절</h3>
+            <div class="control-group">
+                <label>Width:</label>
+                <input type="range" id="width" min="0.5" max="5" step="0.1" value="2">
+                <span id="width-value">2.0</span>
+            </div>
+            <div class="control-group">
+                <label>Height:</label>
+                <input type="range" id="height" min="0.5" max="5" step="0.1" value="2">
+                <span id="height-value">2.0</span>
+            </div>
+            <div class="control-group">
+                <label>Depth:</label>
+                <input type="range" id="depth" min="0.5" max="5" step="0.1" value="2">
+                <span id="depth-value">2.0</span>
+            </div>
         </div>
     </div>
     
