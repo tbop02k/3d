@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Box with Three.js</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+        #canvas-container {
+            width: 300px;
+            height: 300px;
+            border: 2px solid #333;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        #controls {
+            margin-top: 20px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: 300px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .control-group label {
+            font-weight: bold;
+            width: 60px;
+        }
+        .control-group input[type="range"] {
+            flex: 1;
+            margin: 0 10px;
+        }
+        .control-group span {
+            width: 30px;
+            text-align: right;
+            font-family: monospace;
+        }
+        h3 {
+            margin-top: 0;
+            text-align: center;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <div id="controls">
+        <h3>3D Box 조절</h3>
+        <div class="control-group">
+            <label>Width:</label>
+            <input type="range" id="width" min="0.5" max="5" step="0.1" value="2">
+            <span id="width-value">2.0</span>
+        </div>
+        <div class="control-group">
+            <label>Height:</label>
+            <input type="range" id="height" min="0.5" max="5" step="0.1" value="2">
+            <span id="height-value">2.0</span>
+        </div>
+        <div class="control-group">
+            <label>Depth:</label>
+            <input type="range" id="depth" min="0.5" max="5" step="0.1" value="2">
+            <span id="depth-value">2.0</span>
+        </div>
+        <div class="control-group">
+            <label>뚜껑:</label>
+            <input type="range" id="lid" min="0" max="90" step="1" value="0">
+            <span id="lid-value">0°</span>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
